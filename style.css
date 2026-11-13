@@ -90,13 +90,33 @@ h1 {
   gap: 8px;
 }
 
-.chips span {
+.chips a {
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--text);
   padding: 8px 12px;
   font-size: 0.8rem;
   font-weight: 700;
+  text-decoration: none;
+}
+
+.chips a:hover,
+.chips a:focus-visible {
+  background: var(--accent);
+  color: #fff8e9;
+}
+
+.chips a:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+section[id] {
+  scroll-margin-top: 16px;
 }
 
 .section-head {
