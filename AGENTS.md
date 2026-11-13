@@ -8,3 +8,5 @@
 - Always keep and preserve existing user data and working-tree changes. Do not
   ask whether to keep them; avoid destructive resets, overwrites, or whole-plan
   deletion.
+- Keep every file created or edited for the user’s project. Do not delete or
+  discard those files unless the user explicitly requests it.

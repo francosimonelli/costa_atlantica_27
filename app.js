@@ -890,6 +890,7 @@ menuForm.addEventListener('submit', (event) => {
   });
   if (saveData(state)) {
     menuForm.reset();
+    fillOwnerField(document.getElementById('menuOwnersField'), ['Sin definir']);
     renderTables();
   }
 });
