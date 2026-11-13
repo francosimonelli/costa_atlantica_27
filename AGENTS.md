@@ -5,5 +5,6 @@
   WSL user's `~/.ssh`. Do not copy private keys into Windows or switch this
   repository to HTTPS credentials.
 - Do not ask for routine confirmations; proceed autonomously on safe changes.
-- Preserve existing user data and working-tree changes. Avoid destructive
-  resets, overwrites, or whole-plan deletion.
+- Always keep and preserve existing user data and working-tree changes. Do not
+  ask whether to keep them; avoid destructive resets, overwrites, or whole-plan
+  deletion.

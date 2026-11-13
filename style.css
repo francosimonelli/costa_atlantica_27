@@ -131,7 +131,7 @@ section[id] {
 
 .cloud-panel {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 1.2fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   align-items: center;
   background: #e9d8b8;
@@ -159,17 +159,6 @@ section[id] {
   color: #8d4528;
   font-size: 0.82rem;
   font-weight: 700;
-}
-
-.cloud-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.cloud-actions [hidden] {
-  display: none;
 }
 
 .cars-grid {
@@ -391,6 +380,48 @@ td:nth-child(2) {
 .delete-btn:hover {
   color: #7e341f;
   text-decoration: underline;
+}
+
+.row-actions {
+  white-space: nowrap;
+}
+
+.row-actions button {
+  margin: 2px;
+  cursor: pointer;
+}
+
+.edit-btn,
+.save-btn,
+.cancel-btn {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 9px;
+  font-weight: 700;
+}
+
+.edit-btn {
+  background: var(--panel-strong);
+}
+
+.save-btn {
+  background: var(--green);
+  color: #fff8e9;
+}
+
+.cancel-btn {
+  background: transparent;
+}
+
+.edit-field {
+  width: 100%;
+  min-width: 100px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f2e7d3;
+  color: var(--text);
+  padding: 8px;
+  font: inherit;
 }
 
 .empty-row {

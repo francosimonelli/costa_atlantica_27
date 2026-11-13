@@ -25,6 +25,7 @@
             <a href="#menuSection">Menú</a>
             <a href="#itemsSection">Checklist</a>
             <a href="#shoppingSection">Lista del súper</a>
+            <a href="#healthSection">Botiquín</a>
             <a href="#carsSection">Responsables</a>
           </div>
         </section>
@@ -41,10 +42,6 @@
             <h3 id="cloudHeading">Compartido sin clave</h3>
             <p id="cloudStatus" class="cloud-status" role="status" aria-live="polite">Los cambios están guardados solo en este navegador.</p>
             <p class="cloud-warning">Cualquiera que tenga el enlace podrá ver y editar el plan.</p>
-          </div>
-          <div class="cloud-actions">
-            <p id="localBackupStatus" class="cloud-status" role="status" aria-live="polite" hidden></p>
-            <button id="mergeLocal" class="ghost-button" type="button" hidden>Combinar copia de este navegador</button>
           </div>
         </section>
 
@@ -138,6 +135,36 @@
                 </tr>
               </thead>
               <tbody id="shoppingTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="healthSection" class="panel">
+          <div class="section-head">
+            <div>
+              <p class="small-label">Salud</p>
+              <h3>Medicamentos y botiquín</h3>
+              <p class="section-note">Anoten medicamentos personales sin detallar y elementos de primeros auxilios.</p>
+            </div>
+          </div>
+
+          <form id="healthForm" class="row-form">
+            <input name="item" type="text" maxlength="120" placeholder="Ej: botiquín, medicación personal" aria-label="Medicamento o elemento de botiquín" required />
+            <select name="owner" aria-label="Responsable del botiquín"></select>
+            <button type="submit">Agregar</button>
+          </form>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Medicamento o elemento</th>
+                  <th>Quién lleva</th>
+                  <th>Listo</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="healthTableBody"></tbody>
             </table>
           </div>
         </section>

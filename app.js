@@ -22,6 +22,13 @@ const DEFAULT_STATE = {
   menu: [],
   cars: CARS.map(({ id }) => ({ id, driver: '', passengers: [] })),
   shopping: [],
+  health: [
+    { id: 'first-aid-kit', item: 'Botiquín básico', owner: 'Sin definir', done: false },
+    { id: 'personal-medicine', item: 'Medicamentos personales (sin detallar)', owner: 'Sin definir', done: false },
+    { id: 'bandages', item: 'Curitas y gasas', owner: 'Sin definir', done: false },
+    { id: 'sunscreen', item: 'Protector solar', owner: 'Sin definir', done: false },
+    { id: 'repellent', item: 'Repelente', owner: 'Sin definir', done: false }
+  ],
   items: [
     { id: 'chair', item: 'Sillas plegables', category: 'Playa', owner: 'Edu', done: false },
     { id: 'cooler', item: 'Heladera portátil', category: 'Cocina', owner: 'Sin definir', done: false },
@@ -35,14 +42,14 @@ const DEFAULT_STATE = {
 const menuForm = document.getElementById('menuForm');
 const itemsForm = document.getElementById('itemsForm');
 const shoppingForm = document.getElementById('shoppingForm');
+const healthForm = document.getElementById('healthForm');
 const menuTableBody = document.getElementById('menuTableBody');
 const itemsTableBody = document.getElementById('itemsTableBody');
 const shoppingTableBody = document.getElementById('shoppingTableBody');
+const healthTableBody = document.getElementById('healthTableBody');
 const carsList = document.getElementById('carsList');
 const storageStatus = document.getElementById('storageStatus');
 const cloudStatus = document.getElementById('cloudStatus');
-const localBackupStatus = document.getElementById('localBackupStatus');
-const mergeLocalButton = document.getElementById('mergeLocal');
 const menuDaySelect = menuForm.elements.day;
 const menuOwnerSelect = menuForm.elements.owner;
 const itemsCategorySelect = itemsForm.elements.category;
@@ -54,9 +61,9 @@ let cloudSaveQueue = Promise.resolve();
 let pendingCloudSaves = 0;
 let cloudDirty = false;
 let cloudRefreshTimer = null;
-let localPlanForImport = null;
 let localRevision = 0;
 let cloudConnecting = false;
+let editingRow = null;
 
 const setCloudStatus = (message, state = '') => {
   cloudStatus.textContent = message;
@@ -89,6 +96,7 @@ fillSelect(menuOwnerSelect, OWNERS);
 fillSelect(itemsCategorySelect, CATEGORIES);
 fillSelect(itemsOwnerSelect, OWNERS);
 fillSelect(shoppingForm.elements.owner, OWNERS);
+fillSelect(healthForm.elements.owner, OWNERS);
 
 const normalizeOwner = (owner) => OWNERS.includes(owner) ? owner : 'Sin definir';
 
@@ -138,6 +146,12 @@ const normalizeData = (parsed) => {
       item: String(entry.item || ''),
       owner: normalizeOwner(entry.owner),
       done: entry.done === true
+    })),
+    health: (Array.isArray(parsed.health) ? parsed.health : DEFAULT_STATE.health).map((entry) => ({
+      id: String(entry.id || createId()),
+      item: String(entry.item || ''),
+      owner: normalizeOwner(entry.owner),
+      done: entry.done === true
     }))
   };
 };
@@ -165,12 +179,12 @@ const writeLocalData = (state) => {
   }
 };
 
-const clearPendingImport = () => {
+const clearLegacyLocalCopies = () => {
   try {
-    if (localStorage.getItem(LOCAL_IMPORT_APPLIED_KEY) === 'true') return;
     localStorage.removeItem(LOCAL_IMPORT_KEY);
+    localStorage.removeItem(LOCAL_IMPORT_APPLIED_KEY);
   } catch (error) {
-    console.error('No se pudo borrar la copia de importación local.', error);
+    console.error('No se pudieron limpiar las copias locales ya sincronizadas.', error);
   }
 };
 
@@ -188,7 +202,6 @@ const scheduleCloudSave = (state, onSuccess) => {
       lastCloudState = snapshot;
       setStatus('Guardado y compartido con el grupo.');
       if (onSuccess) onSuccess();
-      else if (localPlanForImport === null) clearPendingImport();
     } catch (error) {
       cloudDirty = true;
       console.error('No se pudo sincronizar el plan con Supabase.', error);
@@ -211,11 +224,11 @@ const saveData = (state) => {
 
 const refreshCloudPlan = async () => {
   if (!cloudDb || !cloudConnected || pendingCloudSaves > 0) return;
+  if (editingRow) return;
   if (cloudDirty) {
     scheduleCloudSave(loadData());
     return;
   }
-  if (localPlanForImport) return;
   try {
     const { data, error } = await cloudDb.rpc('get_costa_plan');
     if (error) throw error;
@@ -275,33 +288,9 @@ const mergePlans = (shared, local) => {
     cars,
     menu: mergeRows(shared.menu, local.menu),
     items: mergeRows(shared.items, local.items),
-    shopping: mergeRows(shared.shopping, local.shopping)
+    shopping: mergeRows(shared.shopping, local.shopping),
+    health: mergeRows(shared.health, local.health)
   });
-};
-
-const showLocalBackup = (state) => {
-  localPlanForImport = state;
-  localBackupStatus.hidden = false;
-  mergeLocalButton.hidden = false;
-  localBackupStatus.textContent = 'Encontré una copia local. Se conserva hasta que la combines; los elementos duplicados conservan la versión compartida.';
-  try {
-    localStorage.setItem(LOCAL_IMPORT_KEY, JSON.stringify(state));
-  } catch (error) {
-    console.error('No se pudo conservar una copia local para combinar.', error);
-    localBackupStatus.textContent = 'Hay datos locales distintos, pero no se pudo guardar una copia persistente para combinarlos.';
-  }
-};
-
-const clearLocalBackup = () => {
-  localPlanForImport = null;
-  localBackupStatus.hidden = true;
-  mergeLocalButton.hidden = true;
-  localBackupStatus.textContent = '';
-  try {
-    localStorage.setItem(LOCAL_IMPORT_APPLIED_KEY, 'true');
-  } catch (error) {
-    console.error('No se pudo marcar la copia local como combinada.', error);
-  }
 };
 
 const connectToCloud = async () => {
@@ -319,21 +308,18 @@ const connectToCloud = async () => {
 
     if (localRevision !== revisionAtStart) localPlan = loadData();
     cloudDirty = false;
-    const plan = data === null ? (localPlan || structuredClone(DEFAULT_STATE)) : normalizeData(data);
-    const localBackup = savedImport || (localPlan && JSON.stringify(localPlan) !== JSON.stringify(plan) ? localPlan : null);
+    const sharedPlan = data === null ? null : normalizeData(data);
+    let plan = sharedPlan || localPlan || savedImport || structuredClone(DEFAULT_STATE);
+    if (sharedPlan && localPlan) plan = mergePlans(sharedPlan, localPlan);
+    if (savedImport && (sharedPlan || localPlan)) plan = mergePlans(plan, savedImport);
     if (!writeLocalData(plan)) throw new Error('No se pudo guardar una copia local del plan.');
-    lastCloudState = JSON.stringify(plan);
+    lastCloudState = sharedPlan ? JSON.stringify(sharedPlan) : '';
     cloudConnected = true;
-    if (data === null) scheduleCloudSave(plan);
-    if (localBackup) {
-      try {
-        localStorage.removeItem(LOCAL_IMPORT_APPLIED_KEY);
-      } catch (error) {
-        console.error('No se pudo actualizar el estado de la copia local.', error);
-      }
-      showLocalBackup(localBackup);
-    }
-    else clearLocalBackup();
+    const needsCloudSave = !sharedPlan
+      || !Array.isArray(data?.health)
+      || JSON.stringify(plan) !== JSON.stringify(sharedPlan);
+    if (needsCloudSave) scheduleCloudSave(plan, clearLegacyLocalCopies);
+    else clearLegacyLocalCopies();
     setCloudStatus('Conectado. Los cambios se sincronizan para todos, sin clave.', 'connected');
     renderTables();
   } catch (error) {
@@ -371,14 +357,6 @@ const configureCloud = () => {
   }, 8000);
 };
 
-mergeLocalButton.addEventListener('click', () => {
-  if (!cloudConnected || !localPlanForImport) return;
-  const merged = mergePlans(loadData(), localPlanForImport);
-  if (!writeLocalData(merged)) return;
-  renderTables();
-  scheduleCloudSave(merged, clearLocalBackup);
-});
-
 const appendCell = (row, value) => {
   const cell = document.createElement('td');
   cell.textContent = value;
@@ -405,6 +383,77 @@ const createDeleteButton = (onDelete) => {
   return button;
 };
 
+const createActionButton = (text, className, onClick, ariaLabel = text) => {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = className;
+  button.textContent = text;
+  button.setAttribute('aria-label', ariaLabel);
+  button.addEventListener('click', onClick);
+  return button;
+};
+
+const createTextField = (value, label) => {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.maxLength = 120;
+  input.value = value;
+  input.setAttribute('aria-label', label);
+  input.className = 'edit-field';
+  return input;
+};
+
+const createSelectField = (options, value, label) => {
+  const select = document.createElement('select');
+  select.setAttribute('aria-label', label);
+  select.className = 'edit-field';
+  fillSelect(select, options);
+  select.value = value;
+  return select;
+};
+
+const appendControl = (row, control) => {
+  const cell = document.createElement('td');
+  cell.appendChild(control);
+  row.appendChild(cell);
+};
+
+const createRowActions = (onSave, onCancel) => {
+  const cell = document.createElement('td');
+  cell.className = 'row-actions';
+  cell.append(
+    createActionButton('Guardar', 'save-btn', onSave),
+    createActionButton('Cancelar', 'cancel-btn', onCancel)
+  );
+  return cell;
+};
+
+const createViewActions = (entry, onEdit, onDelete) => {
+  const cell = document.createElement('td');
+  cell.className = 'row-actions';
+  const editButton = createActionButton('Editar', 'edit-btn', onEdit, `Editar ${entry.item}`);
+  const deleteButton = createDeleteButton(onDelete);
+  deleteButton.setAttribute('aria-label', `Borrar ${entry.item}`);
+  editButton.disabled = Boolean(editingRow);
+  deleteButton.disabled = Boolean(editingRow);
+  cell.append(editButton, deleteButton);
+  return cell;
+};
+
+const saveEditedRow = (collection, id, fields) => {
+  const current = loadData();
+  const entry = current[collection].find((candidate) => candidate.id === id);
+  if (!entry) {
+    setStatus('No se encontró el elemento para guardar. Recargá el plan e intentá otra vez.', true);
+    return;
+  }
+  Object.assign(entry, fields);
+  if (saveData(current)) {
+    editingRow = null;
+    renderTables();
+  }
+};
+
 const renderMenu = (state) => {
   menuTableBody.replaceChildren();
   if (!state.menu.length) {
@@ -419,17 +468,49 @@ const renderMenu = (state) => {
   });
   sortedMenu.forEach((entry) => {
     const row = document.createElement('tr');
-    appendCell(row, entry.item);
-    appendCell(row, DAYS.find((day) => day.value === entry.day)?.label || 'A definir');
-    appendCell(row, entry.meal);
-    appendCell(row, entry.owner);
-    const actionCell = document.createElement('td');
-    actionCell.appendChild(createDeleteButton(() => {
-      const current = loadData();
-      current.menu = current.menu.filter((item) => item.id !== entry.id);
-      if (saveData(current)) renderTables();
-    }));
-    row.appendChild(actionCell);
+    const isEditing = editingRow?.type === 'menu' && editingRow.id === entry.id;
+    if (isEditing) {
+      const itemInput = createTextField(entry.item, 'Comida');
+      const daySelect = createSelectField(DAYS, entry.day, 'Día de la comida');
+      const mealSelect = createSelectField(MEALS, entry.meal, 'Momento de la comida');
+      const ownerSelect = createSelectField(OWNERS, entry.owner, 'Responsable de cocinar');
+      appendControl(row, itemInput);
+      appendControl(row, daySelect);
+      appendControl(row, mealSelect);
+      appendControl(row, ownerSelect);
+      const actionCell = createRowActions(() => {
+        const item = itemInput.value.trim();
+        if (!item) {
+          setStatus('La comida no puede quedar vacía.', true);
+          itemInput.focus();
+          return;
+        }
+        saveEditedRow('menu', entry.id, {
+          item,
+          day: daySelect.value,
+          meal: mealSelect.value,
+          owner: ownerSelect.value
+        });
+      }, () => {
+        editingRow = null;
+        renderTables();
+      });
+      row.appendChild(actionCell);
+    } else {
+      appendCell(row, entry.item);
+      appendCell(row, DAYS.find((day) => day.value === entry.day)?.label || 'A definir');
+      appendCell(row, entry.meal);
+      appendCell(row, entry.owner);
+      const actionCell = createViewActions(entry, () => {
+          editingRow = { type: 'menu', id: entry.id };
+          renderTables();
+        }, () => {
+          const current = loadData();
+          current.menu = current.menu.filter((item) => item.id !== entry.id);
+          if (saveData(current)) renderTables();
+        });
+      row.appendChild(actionCell);
+    }
     menuTableBody.appendChild(row);
   });
 };
@@ -444,14 +525,28 @@ const renderItems = (state) => {
   state.items.forEach((entry) => {
     const row = document.createElement('tr');
     if (entry.done) row.classList.add('item-done');
-    appendCell(row, entry.item);
-    appendCell(row, entry.category);
-    appendCell(row, entry.owner);
+    const isEditing = editingRow?.type === 'items' && editingRow.id === entry.id;
+    let itemInput;
+    let categorySelect;
+    let ownerSelect;
+    if (isEditing) {
+      itemInput = createTextField(entry.item, 'Cosa para llevar');
+      categorySelect = createSelectField(CATEGORIES, entry.category, 'Categoría');
+      ownerSelect = createSelectField(OWNERS, entry.owner, 'Responsable del item');
+      appendControl(row, itemInput);
+      appendControl(row, categorySelect);
+      appendControl(row, ownerSelect);
+    } else {
+      appendCell(row, entry.item);
+      appendCell(row, entry.category);
+      appendCell(row, entry.owner);
+    }
 
     const statusCell = document.createElement('td');
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.checked = entry.done;
+    checkbox.disabled = isEditing || Boolean(editingRow);
     checkbox.setAttribute('aria-label', `Marcar ${entry.item} como listo`);
     checkbox.addEventListener('change', () => {
       const current = loadData();
@@ -463,12 +558,31 @@ const renderItems = (state) => {
     statusCell.appendChild(checkbox);
     row.appendChild(statusCell);
 
-    const actionCell = document.createElement('td');
-    actionCell.appendChild(createDeleteButton(() => {
-      const current = loadData();
-      current.items = current.items.filter((item) => item.id !== entry.id);
-      if (saveData(current)) renderTables();
-    }));
+    const actionCell = isEditing
+      ? createRowActions(() => {
+        const item = itemInput.value.trim();
+        if (!item) {
+          setStatus('El item no puede quedar vacío.', true);
+          itemInput.focus();
+          return;
+        }
+        saveEditedRow('items', entry.id, {
+          item,
+          category: categorySelect.value,
+          owner: ownerSelect.value
+        });
+      }, () => {
+        editingRow = null;
+        renderTables();
+      })
+      : createViewActions(entry, () => {
+          editingRow = { type: 'items', id: entry.id };
+          renderTables();
+        }, () => {
+          const current = loadData();
+          current.items = current.items.filter((item) => item.id !== entry.id);
+          if (saveData(current)) renderTables();
+        });
     row.appendChild(actionCell);
     itemsTableBody.appendChild(row);
   });
@@ -484,13 +598,24 @@ const renderShopping = (state) => {
   state.shopping.forEach((entry) => {
     const row = document.createElement('tr');
     if (entry.done) row.classList.add('item-done');
-    appendCell(row, entry.item);
-    appendCell(row, entry.owner);
+    const isEditing = editingRow?.type === 'shopping' && editingRow.id === entry.id;
+    let itemInput;
+    let ownerSelect;
+    if (isEditing) {
+      itemInput = createTextField(entry.item, 'Producto para comprar');
+      ownerSelect = createSelectField(OWNERS, entry.owner, 'Responsable de la compra');
+      appendControl(row, itemInput);
+      appendControl(row, ownerSelect);
+    } else {
+      appendCell(row, entry.item);
+      appendCell(row, entry.owner);
+    }
 
     const statusCell = document.createElement('td');
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.checked = entry.done;
+    checkbox.disabled = isEditing || Boolean(editingRow);
     checkbox.setAttribute('aria-label', `Marcar ${entry.item} como comprado`);
     checkbox.addEventListener('change', () => {
       const current = loadData();
@@ -502,14 +627,100 @@ const renderShopping = (state) => {
     statusCell.appendChild(checkbox);
     row.appendChild(statusCell);
 
-    const actionCell = document.createElement('td');
-    actionCell.appendChild(createDeleteButton(() => {
-      const current = loadData();
-      current.shopping = current.shopping.filter((product) => product.id !== entry.id);
-      if (saveData(current)) renderTables();
-    }));
+    const actionCell = isEditing
+      ? createRowActions(() => {
+        const item = itemInput.value.trim();
+        if (!item) {
+          setStatus('El producto no puede quedar vacío.', true);
+          itemInput.focus();
+          return;
+        }
+        saveEditedRow('shopping', entry.id, {
+          item,
+          owner: ownerSelect.value
+        });
+      }, () => {
+        editingRow = null;
+        renderTables();
+      })
+      : createViewActions(entry, () => {
+          editingRow = { type: 'shopping', id: entry.id };
+          renderTables();
+        }, () => {
+          const current = loadData();
+          current.shopping = current.shopping.filter((product) => product.id !== entry.id);
+          if (saveData(current)) renderTables();
+        });
     row.appendChild(actionCell);
     shoppingTableBody.appendChild(row);
+  });
+};
+
+const renderHealth = (state) => {
+  healthTableBody.replaceChildren();
+  if (!state.health.length) {
+    appendEmptyMessage(healthTableBody, 4, 'Todavía no hay elementos anotados para el botiquín.');
+    return;
+  }
+
+  state.health.forEach((entry) => {
+    const row = document.createElement('tr');
+    if (entry.done) row.classList.add('item-done');
+    const isEditing = editingRow?.type === 'health' && editingRow.id === entry.id;
+    let itemInput;
+    let ownerSelect;
+    if (isEditing) {
+      itemInput = createTextField(entry.item, 'Medicamento o elemento de botiquín');
+      ownerSelect = createSelectField(OWNERS, entry.owner, 'Responsable del botiquín');
+      appendControl(row, itemInput);
+      appendControl(row, ownerSelect);
+    } else {
+      appendCell(row, entry.item);
+      appendCell(row, entry.owner);
+    }
+
+    const statusCell = document.createElement('td');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = entry.done;
+    checkbox.disabled = isEditing || Boolean(editingRow);
+    checkbox.setAttribute('aria-label', `Marcar ${entry.item} como listo`);
+    checkbox.addEventListener('change', () => {
+      const current = loadData();
+      const item = current.health.find((candidate) => candidate.id === entry.id);
+      if (!item) return;
+      item.done = checkbox.checked;
+      if (saveData(current)) renderTables();
+    });
+    statusCell.appendChild(checkbox);
+    row.appendChild(statusCell);
+
+    const actionCell = isEditing
+      ? createRowActions(() => {
+        const item = itemInput.value.trim();
+        if (!item) {
+          setStatus('El elemento del botiquín no puede quedar vacío.', true);
+          itemInput.focus();
+          return;
+        }
+        saveEditedRow('health', entry.id, {
+          item,
+          owner: ownerSelect.value
+        });
+      }, () => {
+        editingRow = null;
+        renderTables();
+      })
+      : createViewActions(entry, () => {
+          editingRow = { type: 'health', id: entry.id };
+          renderTables();
+        }, () => {
+          const current = loadData();
+          current.health = current.health.filter((item) => item.id !== entry.id);
+          if (saveData(current)) renderTables();
+        });
+    row.appendChild(actionCell);
+    healthTableBody.appendChild(row);
   });
 };
 
@@ -518,6 +729,7 @@ const renderTables = () => {
   renderMenu(state);
   renderItems(state);
   renderShopping(state);
+  renderHealth(state);
   renderCars(state);
 };
 
@@ -555,6 +767,7 @@ const renderCars = (state) => {
       driverSelect.appendChild(option);
     });
     driverSelect.value = car.driver;
+    driverSelect.disabled = Boolean(editingRow);
     driverLabel.appendChild(driverSelect);
     card.appendChild(driverLabel);
 
@@ -572,7 +785,8 @@ const renderCars = (state) => {
       checkbox.type = 'checkbox';
       checkbox.value = person;
       checkbox.checked = car.passengers.includes(person);
-      checkbox.disabled = assignedElsewhere.has(person) && assignedElsewhere.get(person) !== id;
+      checkbox.disabled = Boolean(editingRow)
+        || (assignedElsewhere.has(person) && assignedElsewhere.get(person) !== id);
       checkbox.setAttribute('aria-label', `${person} viaja en ${label}`);
       const name = document.createElement('span');
       name.textContent = person;
@@ -670,6 +884,25 @@ shoppingForm.addEventListener('submit', (event) => {
   }
 });
 
+healthForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const formData = new FormData(healthForm);
+  const item = String(formData.get('item') || '').trim();
+  if (!item) return;
+
+  const state = loadData();
+  state.health.push({
+    id: createId(),
+    item,
+    owner: normalizeOwner(String(formData.get('owner') || '')),
+    done: false
+  });
+  if (saveData(state)) {
+    healthForm.reset();
+    renderTables();
+  }
+});
+
 const buildShareText = () => {
   const state = loadData();
   const lines = ['*Costa Atlántica · 20 al 23 de noviembre*', '', '*AUTOS*'];
@@ -696,6 +929,15 @@ const buildShareText = () => {
   lines.push('', '*LISTA DEL SÚPER*');
   if (state.shopping.length) {
     state.shopping.forEach((entry) => {
+      lines.push(`${entry.done ? '✅' : '☐'} ${entry.item} — ${entry.owner}`);
+    });
+  } else {
+    lines.push('• A definir');
+  }
+
+  lines.push('', '*MEDICAMENTOS Y BOTIQUÍN*');
+  if (state.health.length) {
+    state.health.forEach((entry) => {
       lines.push(`${entry.done ? '✅' : '☐'} ${entry.item} — ${entry.owner}`);
     });
   } else {

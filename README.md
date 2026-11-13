@@ -5,12 +5,16 @@ que hay que llevar, además de repartir el grupo en los dos autos.
 
 ## Uso
 
-- En **Comidas para cocinar**, agregá el plato, el día, el momento y quién cocina.
-- En **Lista del súper**, anotá los productos y marcá lo que ya compraron.
-- En **Cosas para llevar**, asigná categoría y responsable; marcá cada cosa cuando
+- En **Comidas para cocinar**, agregá o editá el plato, el día, el momento y quién cocina.
+- En **Lista del súper**, agregá o editá productos y marcá lo que ya compraron.
+- En **Cosas para llevar**, asigná o editá categoría y responsable; marcá cada cosa cuando
   esté lista.
+- En **Medicamentos y botiquín**, anotá elementos de primeros auxilios y medicación
+  personal sin detallar información médica.
 - En **Reparto en los dos autos**, elegí conductor y acompañantes. Cada persona
   puede quedar asignada a un solo auto.
+- En las tablas, usá **Editar**, **Guardar** o **Cancelar**. Los cambios se guardan
+  localmente y se sincronizan con el plan compartido.
 - **Enviar por WhatsApp** prepara un resumen de autos, menú y checklist.
 - **Imprimir / guardar PDF** abre el diálogo de impresión del navegador.
 
@@ -33,8 +37,9 @@ Para habilitar el guardado compartido:
    `save_costa_plan(jsonb)` aparezcan en Supabase **Database → Functions**.
 
 Los cambios que ya estaban en este navegador se guardan localmente. Al conectar,
-si difieren del plan compartido, se ofrece combinarlos sin borrar la copia
-local.
+los elementos locales que no estén en el plan compartido se incorporan
+automáticamente; si un elemento tiene el mismo ID en ambas copias, prevalece la
+versión compartida.
 
 El plan compartido se guarda en una fila privada de Postgres. El navegador solo
 puede leerlo o editarlo mediante funciones públicas; no tiene acceso directo a
@@ -44,11 +49,7 @@ el plan compartido. No guardes información sensible. Para mantener los datos,
 la interfaz no ofrece un botón para resetear todo; cada cambio se conserva en
 el navegador y se sincroniza automáticamente después de conectar.
 
-Los cambios de otros participantes se consultan periódicamente. Si hay una
-copia local diferente al conectar, se conserva en ese navegador y aparece
-**Combinar copia de este navegador**. La combinación agrega elementos locales
-que no están en la copia compartida, conserva la versión compartida en caso de
-IDs duplicados y mantiene la copia local en el navegador.
+Los cambios de otros participantes se consultan periódicamente.
 
 Hasta completar estos pasos, los cambios se guardan solo en el almacenamiento
 local de ese navegador y no se comparten.
