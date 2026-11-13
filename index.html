@@ -24,6 +24,7 @@
           <div class="chips">
             <span>Menú</span>
             <span>Checklist</span>
+            <span>Lista del súper</span>
             <span>Responsables</span>
           </div>
         </section>
@@ -52,6 +53,7 @@
             <div>
               <p class="small-label">Menú</p>
               <h3>Comidas para cocinar</h3>
+              <p class="section-note">En orden cronológico. El viernes al mediodía: empanadas o comer afuera, sin cocinar.</p>
             </div>
           </div>
 
@@ -106,6 +108,36 @@
                 </tr>
               </thead>
               <tbody id="itemsTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <p class="small-label">Compras</p>
+              <h3>Lista del súper</h3>
+              <p class="section-note">Agreguen lo que falte y marquen cada compra cuando esté lista.</p>
+            </div>
+          </div>
+
+          <form id="shoppingForm" class="row-form">
+            <input name="item" type="text" maxlength="120" placeholder="Ej: yerba, fruta, pasta" aria-label="Producto para comprar" required />
+            <select name="owner" aria-label="Responsable de la compra"></select>
+            <button type="submit">Agregar</button>
+          </form>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th>Quién compra</th>
+                  <th>Comprado</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="shoppingTableBody"></tbody>
             </table>
           </div>
         </section>

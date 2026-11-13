@@ -6,6 +6,7 @@ que hay que llevar, además de repartir el grupo en los dos autos.
 ## Uso
 
 - En **Comidas para cocinar**, agregá el plato, el día, el momento y quién cocina.
+- En **Lista del súper**, anotá los productos y marcá lo que ya compraron.
 - En **Cosas para llevar**, asigná categoría y responsable; marcá cada cosa cuando
   esté lista.
 - En **Reparto en los dos autos**, elegí conductor y acompañantes. Cada persona

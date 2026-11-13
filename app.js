@@ -21,6 +21,7 @@ const CARS = [
 const DEFAULT_STATE = {
   menu: [],
   cars: CARS.map(({ id }) => ({ id, driver: '', passengers: [] })),
+  shopping: [],
   items: [
     { id: 'chair', item: 'Sillas plegables', category: 'Playa', owner: 'Edu', done: false },
     { id: 'cooler', item: 'Heladera portátil', category: 'Cocina', owner: 'Sin definir', done: false },
@@ -33,8 +34,10 @@ const DEFAULT_STATE = {
 
 const menuForm = document.getElementById('menuForm');
 const itemsForm = document.getElementById('itemsForm');
+const shoppingForm = document.getElementById('shoppingForm');
 const menuTableBody = document.getElementById('menuTableBody');
 const itemsTableBody = document.getElementById('itemsTableBody');
+const shoppingTableBody = document.getElementById('shoppingTableBody');
 const carsList = document.getElementById('carsList');
 const storageStatus = document.getElementById('storageStatus');
 const cloudStatus = document.getElementById('cloudStatus');
@@ -85,6 +88,7 @@ fillSelect(menuForm.elements.meal, MEALS);
 fillSelect(menuOwnerSelect, OWNERS);
 fillSelect(itemsCategorySelect, CATEGORIES);
 fillSelect(itemsOwnerSelect, OWNERS);
+fillSelect(shoppingForm.elements.owner, OWNERS);
 
 const normalizeOwner = (owner) => OWNERS.includes(owner) ? owner : 'Sin definir';
 
@@ -126,6 +130,12 @@ const normalizeData = (parsed) => {
       id: String(entry.id || createId()),
       item: String(entry.item || ''),
       category: CATEGORIES.includes(entry.category) ? entry.category : 'Otros',
+      owner: normalizeOwner(entry.owner),
+      done: entry.done === true
+    })),
+    shopping: (Array.isArray(parsed.shopping) ? parsed.shopping : []).map((entry) => ({
+      id: String(entry.id || createId()),
+      item: String(entry.item || ''),
       owner: normalizeOwner(entry.owner),
       done: entry.done === true
     }))
@@ -264,7 +274,8 @@ const mergePlans = (shared, local) => {
   return normalizeData({
     cars,
     menu: mergeRows(shared.menu, local.menu),
-    items: mergeRows(shared.items, local.items)
+    items: mergeRows(shared.items, local.items),
+    shopping: mergeRows(shared.shopping, local.shopping)
   });
 };
 
@@ -401,7 +412,12 @@ const renderMenu = (state) => {
     return;
   }
 
-  state.menu.forEach((entry) => {
+  const sortedMenu = [...state.menu].sort((a, b) => {
+    const dayOrder = (day) => DAYS.findIndex((option) => option.value === day);
+    const dayDifference = dayOrder(a.day) - dayOrder(b.day);
+    return dayDifference || MEALS.indexOf(a.meal) - MEALS.indexOf(b.meal);
+  });
+  sortedMenu.forEach((entry) => {
     const row = document.createElement('tr');
     appendCell(row, entry.item);
     appendCell(row, DAYS.find((day) => day.value === entry.day)?.label || 'A definir');
@@ -458,10 +474,50 @@ const renderItems = (state) => {
   });
 };
 
+const renderShopping = (state) => {
+  shoppingTableBody.replaceChildren();
+  if (!state.shopping.length) {
+    appendEmptyMessage(shoppingTableBody, 4, 'Todavía no hay productos en la lista del súper.');
+    return;
+  }
+
+  state.shopping.forEach((entry) => {
+    const row = document.createElement('tr');
+    if (entry.done) row.classList.add('item-done');
+    appendCell(row, entry.item);
+    appendCell(row, entry.owner);
+
+    const statusCell = document.createElement('td');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = entry.done;
+    checkbox.setAttribute('aria-label', `Marcar ${entry.item} como comprado`);
+    checkbox.addEventListener('change', () => {
+      const current = loadData();
+      const product = current.shopping.find((candidate) => candidate.id === entry.id);
+      if (!product) return;
+      product.done = checkbox.checked;
+      if (saveData(current)) renderTables();
+    });
+    statusCell.appendChild(checkbox);
+    row.appendChild(statusCell);
+
+    const actionCell = document.createElement('td');
+    actionCell.appendChild(createDeleteButton(() => {
+      const current = loadData();
+      current.shopping = current.shopping.filter((product) => product.id !== entry.id);
+      if (saveData(current)) renderTables();
+    }));
+    row.appendChild(actionCell);
+    shoppingTableBody.appendChild(row);
+  });
+};
+
 const renderTables = () => {
   const state = loadData();
   renderMenu(state);
   renderItems(state);
+  renderShopping(state);
   renderCars(state);
 };
 
@@ -595,6 +651,25 @@ itemsForm.addEventListener('submit', (event) => {
   }
 });
 
+shoppingForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const formData = new FormData(shoppingForm);
+  const item = String(formData.get('item') || '').trim();
+  if (!item) return;
+
+  const state = loadData();
+  state.shopping.push({
+    id: createId(),
+    item,
+    owner: normalizeOwner(String(formData.get('owner') || '')),
+    done: false
+  });
+  if (saveData(state)) {
+    shoppingForm.reset();
+    renderTables();
+  }
+});
+
 const buildShareText = () => {
   const state = loadData();
   const lines = ['*Costa Atlántica · 20 al 23 de noviembre*', '', '*AUTOS*'];
@@ -606,9 +681,22 @@ const buildShareText = () => {
 
   lines.push('', '*COMIDAS PARA COCINAR*');
   if (state.menu.length) {
-    state.menu.forEach((entry) => {
+    const sortedMenu = [...state.menu].sort((a, b) => {
+      const dayOrder = (day) => DAYS.findIndex((option) => option.value === day);
+      return dayOrder(a.day) - dayOrder(b.day) || MEALS.indexOf(a.meal) - MEALS.indexOf(b.meal);
+    });
+    sortedMenu.forEach((entry) => {
       const day = DAYS.find((option) => option.value === entry.day)?.label || 'Día a definir';
       lines.push(`• ${day} · ${entry.meal}: ${entry.item} — ${entry.owner}`);
+    });
+  } else {
+    lines.push('• A definir');
+  }
+
+  lines.push('', '*LISTA DEL SÚPER*');
+  if (state.shopping.length) {
+    state.shopping.forEach((entry) => {
+      lines.push(`${entry.done ? '✅' : '☐'} ${entry.item} — ${entry.owner}`);
     });
   } else {
     lines.push('• A definir');
