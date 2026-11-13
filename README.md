@@ -1,4 +1,4 @@
-# Costa Atlántica · 20–23 de noviembre de 2026
+# Costa Atlántica · 20–23 de viembre de 2026
 
 Plan compartido para organizar las comidas que vamos a cocinar y las cosas
 que hay que llevar, además de repartir el grupo en los dos autos.
@@ -32,10 +32,15 @@ Para habilitar el guardado compartido:
 
 1. En el proyecto Supabase configurado en `app.js`, ejecutá
    `supabase/schema.sql` en **SQL Editor**.
-2. Esperá unos segundos y recargá la página pública. El sitio se conecta
+2. Ejecutá también `supabase/audit_menu_deletions.sql` para registrar las
+   comidas quitadas del menú junto con la fecha y la IP que Supabase exponga
+   en los encabezados de la solicitud. La IP puede no estar disponible en
+   todos los casos, ser compartida o estar enmascarada; no identifica
+   necesariamente a una persona.
+3. Esperá unos segundos y recargá la página pública. El sitio se conecta
    automáticamente, sin pedir clave; compartí la URL de GitHub Pages con el
    grupo.
-3. Si no conecta, confirmá que las funciones `get_costa_plan()` y
+4. Si no conecta, confirmá que las funciones `get_costa_plan()` y
    `save_costa_plan(jsonb)` aparezcan en Supabase **Database → Functions**.
 
 Los cambios que ya estaban en este navegador se guardan localmente. Al conectar,
@@ -55,3 +60,22 @@ Los cambios de otros participantes se consultan periódicamente.
 
 Hasta completar estos pasos, los cambios se guardan solo en el almacenamiento
 local de ese navegador y no se comparten.
+
+### Registrar y revisar borrados del menú
+
+La interfaz informa a los participantes que los borrados de comidas se registran
+con fecha e IP. La tabla privada `costa_private.menu_deletion_audit` no es
+accesible desde la página pública; para revisarla, usá **SQL Editor** con una
+cuenta administradora:
+
+```sql
+select created_at, client_ip, removed_menu
+from costa_private.menu_deletion_audit
+order by created_at desc;
+```
+
+El registro empieza cuando se ejecuta `supabase/audit_menu_deletions.sql`; no
+puede reconstruir las IP de borrados anteriores. Para volver a cargar el menú
+que ya estaba guardado, ejecutá `supabase/restore_menu.sql`. El script agrega
+las comidas históricas solo en horarios que todavía no tienen una comida, para
+preservar cambios nuevos hechos por el grupo.
