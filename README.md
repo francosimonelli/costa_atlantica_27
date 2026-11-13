@@ -78,4 +78,11 @@ El registro empieza cuando se ejecuta `supabase/audit_menu_deletions.sql`; no
 puede reconstruir las IP de borrados anteriores. Para volver a cargar el menú
 que ya estaba guardado, ejecutá `supabase/restore_menu.sql`. El script agrega
 las comidas históricas solo en horarios que todavía no tienen una comida, para
-preservar cambios nuevos hechos por el grupo.
+preservar cambios nuevos hechos por el grupo. También repone los 22 productos
+históricos del súper que falten, asignados a “Sin definir”, sin duplicar
+productos que ya existan.
+
+La copia histórica disponible tenía las comidas originales con responsable
+“Sin definir”. La restauración conserva sin cambios los responsables de las
+comidas que ya están cargadas; no es posible recuperar asignaciones anteriores
+que no aparecen en esa copia.
