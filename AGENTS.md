@@ -4,4 +4,6 @@
   `/mnt/c/Users/King/repos/costa_atlantica_27`; the working SSH key is in the
   WSL user's `~/.ssh`. Do not copy private keys into Windows or switch this
   repository to HTTPS credentials.
-- Keep the working tree's existing user changes intact.
+- Do not ask for routine confirmations; proceed autonomously on safe changes.
+- Preserve existing user data and working-tree changes. Avoid destructive
+  resets, overwrites, or whole-plan deletion.
