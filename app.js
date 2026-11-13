@@ -51,7 +51,6 @@ const carsList = document.getElementById('carsList');
 const storageStatus = document.getElementById('storageStatus');
 const cloudStatus = document.getElementById('cloudStatus');
 const menuDaySelect = menuForm.elements.day;
-const menuOwnerSelect = menuForm.elements.owner;
 const itemsCategorySelect = itemsForm.elements.category;
 const itemsOwnerSelect = itemsForm.elements.owner;
 let cloudDb = null;
@@ -90,15 +89,63 @@ const fillSelect = (select, options) => {
   });
 };
 
+const normalizeOwner = (owner) => OWNERS.includes(owner) ? owner : 'Sin definir';
+const normalizeMenuOwners = (owners) => {
+  const selected = Array.isArray(owners) ? owners : [owners];
+  const people = PEOPLE.filter((person) => selected.includes(person));
+  if (people.length) return people;
+  if (selected.includes('Todos')) return ['Todos'];
+  return ['Sin definir'];
+};
+const formatMenuOwners = (owners) => normalizeMenuOwners(owners).join(', ');
+
 fillSelect(menuDaySelect, DAYS);
 fillSelect(menuForm.elements.meal, MEALS);
-fillSelect(menuOwnerSelect, OWNERS);
 fillSelect(itemsCategorySelect, CATEGORIES);
 fillSelect(itemsOwnerSelect, OWNERS);
 fillSelect(shoppingForm.elements.owner, OWNERS);
 fillSelect(healthForm.elements.owner, OWNERS);
 
-const normalizeOwner = (owner) => OWNERS.includes(owner) ? owner : 'Sin definir';
+const fillOwnerField = (fieldset, selectedOwners) => {
+  const selected = normalizeMenuOwners(selectedOwners);
+  fieldset.replaceChildren();
+  const legend = document.createElement('legend');
+  legend.textContent = 'Responsables (podés elegir varias personas)';
+  fieldset.appendChild(legend);
+
+  OWNERS.forEach((owner) => {
+    const label = document.createElement('label');
+    label.className = 'owner-option';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.name = 'owner';
+    checkbox.value = owner;
+    checkbox.checked = selected.includes(owner);
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked && (owner === 'Todos' || owner === 'Sin definir')) {
+        fieldset.querySelectorAll('input[name="owner"]').forEach((input) => {
+          if (input !== checkbox) input.checked = false;
+        });
+      } else if (checkbox.checked) {
+        fieldset.querySelectorAll('input[name="owner"]').forEach((input) => {
+          if (input.value === 'Todos' || input.value === 'Sin definir') input.checked = false;
+        });
+      } else if (!fieldset.querySelector('input[name="owner"]:checked')) {
+        fieldset.querySelector('input[value="Sin definir"]').checked = true;
+      }
+    });
+    const text = document.createElement('span');
+    text.textContent = owner;
+    label.append(checkbox, text);
+    fieldset.appendChild(label);
+  });
+};
+
+const getSelectedMenuOwners = (fieldset) => (
+  [...fieldset.querySelectorAll('input[name="owner"]:checked')].map((input) => input.value)
+);
+
+fillOwnerField(document.getElementById('menuOwnersField'), ['Sin definir']);
 
 function createId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -132,7 +179,7 @@ const normalizeData = (parsed) => {
       item: String(entry.item || ''),
       day: DAYS.some((day) => day.value === entry.day) ? entry.day : '',
       meal: MEALS.includes(entry.meal) ? entry.meal : 'A definir',
-      owner: normalizeOwner(entry.owner)
+      owner: normalizeMenuOwners(entry.owner)
     })),
     items: parsed.items.map((entry) => ({
       id: String(entry.id || createId()),
@@ -473,11 +520,13 @@ const renderMenu = (state) => {
       const itemInput = createTextField(entry.item, 'Comida');
       const daySelect = createSelectField(DAYS, entry.day, 'Día de la comida');
       const mealSelect = createSelectField(MEALS, entry.meal, 'Momento de la comida');
-      const ownerSelect = createSelectField(OWNERS, entry.owner, 'Responsable de cocinar');
+      const ownerField = document.createElement('fieldset');
+      ownerField.className = 'owner-field edit-owner-field';
+      fillOwnerField(ownerField, entry.owner);
       appendControl(row, itemInput);
       appendControl(row, daySelect);
       appendControl(row, mealSelect);
-      appendControl(row, ownerSelect);
+      appendControl(row, ownerField);
       const actionCell = createRowActions(() => {
         const item = itemInput.value.trim();
         if (!item) {
@@ -489,7 +538,7 @@ const renderMenu = (state) => {
           item,
           day: daySelect.value,
           meal: mealSelect.value,
-          owner: ownerSelect.value
+          owner: getSelectedMenuOwners(ownerField)
         });
       }, () => {
         editingRow = null;
@@ -500,7 +549,7 @@ const renderMenu = (state) => {
       appendCell(row, entry.item);
       appendCell(row, DAYS.find((day) => day.value === entry.day)?.label || 'A definir');
       appendCell(row, entry.meal);
-      appendCell(row, entry.owner);
+      appendCell(row, formatMenuOwners(entry.owner));
       const actionCell = createViewActions(entry, () => {
           editingRow = { type: 'menu', id: entry.id };
           renderTables();
@@ -837,7 +886,7 @@ menuForm.addEventListener('submit', (event) => {
     item,
     day: String(formData.get('day') || ''),
     meal: String(formData.get('meal') || 'A definir'),
-    owner: normalizeOwner(String(formData.get('owner') || ''))
+    owner: normalizeMenuOwners(getSelectedMenuOwners(document.getElementById('menuOwnersField')))
   });
   if (saveData(state)) {
     menuForm.reset();
@@ -920,7 +969,7 @@ const buildShareText = () => {
     });
     sortedMenu.forEach((entry) => {
       const day = DAYS.find((option) => option.value === entry.day)?.label || 'Día a definir';
-      lines.push(`• ${day} · ${entry.meal}: ${entry.item} — ${entry.owner}`);
+      lines.push(`• ${day} · ${entry.meal}: ${entry.item} — ${formatMenuOwners(entry.owner)}`);
     });
   } else {
     lines.push('• A definir');

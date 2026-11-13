@@ -5,7 +5,9 @@ que hay que llevar, además de repartir el grupo en los dos autos.
 
 ## Uso
 
-- En **Comidas para cocinar**, agregá o editá el plato, el día, el momento y quién cocina.
+- En **Comidas para cocinar**, agregá o editá el plato, el día, el momento y una
+  o varias personas responsables: marcá todos los nombres que participen. “Todos”
+  y “Sin definir” son opciones excluyentes.
 - En **Lista del súper**, agregá o editá productos y marcá lo que ya compraron.
 - En **Cosas para llevar**, asigná o editá categoría y responsable; marcá cada cosa cuando
   esté lista.

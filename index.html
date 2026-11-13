@@ -58,7 +58,9 @@
             <input name="item" type="text" maxlength="120" placeholder="Ej: pastas, asado, ensalada" aria-label="Plato o comida para cocinar" required />
             <select name="day" aria-label="Día de la comida"></select>
             <select name="meal" aria-label="Momento de la comida"></select>
-            <select name="owner" aria-label="Responsable de cocinar"></select>
+            <fieldset id="menuOwnersField" class="owner-field">
+              <legend>Responsables (podés elegir varias personas)</legend>
+            </fieldset>
             <button type="submit">Agregar</button>
           </form>
 
