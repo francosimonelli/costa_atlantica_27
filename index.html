@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Costa Atlántica 27 — Plan</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Costa Atlántica</p>
+          <h1>Plan del finde 20–23 Nov</h1>
+        </div>
+      </header>
+
+      <main class="content">
+        <section class="panel hero">
+          <div>
+            <p class="small-label">Objetivo</p>
+            <h2>Organizar el fin de semana en la costa</h2>
+          </div>
+          <div class="chips">
+            <span>Menú</span>
+            <span>Checklist</span>
+            <span>Responsables</span>
+          </div>
+        </section>
+
+        <div class="plan-actions" aria-label="Compartir o imprimir el plan">
+          <button id="whatsappPlan" class="action-button" type="button">Enviar por WhatsApp</button>
+          <button id="printPlan" class="ghost-button" type="button">Imprimir / guardar PDF</button>
+          <p id="storageStatus" class="storage-status" role="status" aria-live="polite"></p>
+        </div>
+
+        <section class="panel cloud-panel" aria-labelledby="cloudHeading">
+          <div class="cloud-copy">
+            <p class="small-label">Plan compartido</p>
+            <h3 id="cloudHeading">Compartido sin clave</h3>
+            <p id="cloudStatus" class="cloud-status" role="status" aria-live="polite">Los cambios están guardados solo en este navegador.</p>
+            <p class="cloud-warning">Cualquiera que tenga el enlace podrá ver y editar el plan.</p>
+          </div>
+          <div class="cloud-actions">
+            <p id="localBackupStatus" class="cloud-status" role="status" aria-live="polite" hidden></p>
+            <button id="mergeLocal" class="ghost-button" type="button" hidden>Combinar copia de este navegador</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <p class="small-label">Menú</p>
+              <h3>Comidas para cocinar</h3>
+            </div>
+          </div>
+
+          <form id="menuForm" class="row-form">
+            <input name="item" type="text" maxlength="120" placeholder="Ej: pastas, asado, ensalada" aria-label="Plato o comida para cocinar" required />
+            <select name="day" aria-label="Día de la comida"></select>
+            <select name="meal" aria-label="Momento de la comida"></select>
+            <select name="owner" aria-label="Responsable de cocinar"></select>
+            <button type="submit">Agregar</button>
+          </form>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Qué cocinamos</th>
+                  <th>Día</th>
+                  <th>Momento</th>
+                  <th>Quién</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="menuTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <p class="small-label">Checklist</p>
+              <h3>Cosas para llevar</h3>
+            </div>
+          </div>
+
+          <form id="itemsForm" class="row-form">
+            <input name="item" type="text" maxlength="120" placeholder="Ej: heladera portátil" aria-label="Cosa para llevar" required />
+            <select name="category" aria-label="Categoría"></select>
+            <select name="owner" aria-label="Responsable del item"></select>
+            <button type="submit">Agregar</button>
+          </form>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Categoría</th>
+                  <th>Quién</th>
+                  <th>Listo</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="itemsTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <p class="small-label">Transporte</p>
+              <h3>Reparto en los dos autos</h3>
+              <p class="section-note">Elegí un conductor y marcá quiénes viajan en cada auto. El conductor ya cuenta como ocupante.</p>
+            </div>
+          </div>
+          <div id="carsList" class="cars-grid"></div>
+        </section>
+
+        <section class="panel tasks-panel">
+          <div class="section-head">
+            <div>
+              <p class="small-label">Plan</p>
+              <h3>Checklist del finde</h3>
+            </div>
+          </div>
+
+          <ul class="task-list">
+            <li>Confirmar quién va del 20 al 23 y cuántas personas quedan.</li>
+            <li>Definir menú, cantidades y qué se cocina en la costa.</li>
+            <li>Revisar qué cosas ya tienen cada uno y qué falta comprar.</li>
+            <li>Armar la lista final con cada item asignado a una persona.</li>
+            <li>Confirmar transporte, sillas, mesa, hielo, cocina y limpieza.</li>
+          </ul>
+        </section>
+      </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
